@@ -1,0 +1,197 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && (request.auth.token.get('email_verified', false) == true || request.auth.token.get('email', '') == 'mehaalkhan.2@gmail.com');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'mehaalkhan.2@gmail.com' ||
+        request.auth.token.get('email', '') == 'mehaalkhan.2@gmail.com' ||
+        request.auth.uid == 'oU72Es8nYDfYzlHDbSROt667yCv2' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Helpers ---
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'classLevel', 'createdAt']) &&
+             data.uid is string && data.uid == request.auth.uid &&
+             data.email is string && data.email.size() <= 200 &&
+             (data.has('fullName') ? (data.fullName == null || (data.fullName is string && data.fullName.size() <= 200)) : true) &&
+             data.classLevel is string &&
+             data.role in ['admin', 'student'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidLecture(data) {
+      return data.keys().hasAll(['title', 'date', 'classLevel', 'subject']) &&
+             data.title is string && data.title.size() <= 1000 &&
+             (data.has('description') ? (data.description is string && data.description.size() <= 10000) : true) &&
+             (data.has('teacher') ? (data.teacher is string && data.teacher.size() <= 1000) : true) &&
+             (data.has('videoUrl') ? (data.videoUrl is string && data.videoUrl.size() <= 2000) : true) &&
+             (data.has('boardImageUrl') ? (data.boardImageUrl is string && data.boardImageUrl.size() <= 2000000) : true) &&
+             (data.has('whiteboardImageUrl') ? (data.whiteboardImageUrl is string && data.whiteboardImageUrl.size() <= 2000000) : true) &&
+             data.date is timestamp &&
+             data.classLevel is string &&
+             data.subject is string;
+    }
+
+    function isValidResult(data) {
+      return data.keys().hasAll(['studentName', 'studentEmail', 'marks', 'totalMarks', 'classLevel', 'date']) &&
+             data.studentName is string && data.studentName.size() <= 1000 &&
+             data.studentEmail is string && data.studentEmail.size() <= 1000 &&
+             data.classLevel is string &&
+             data.date is timestamp;
+    }
+
+    function isValidNote(data) {
+      return data.keys().hasAll(['title', 'pdfUrl', 'date', 'classLevel', 'subject']) &&
+             data.title is string && data.title.size() <= 500 &&
+             (data.has('description') ? (data.description is string && data.description.size() <= 5000) : true) &&
+             (data.has('chapter') ? (data.chapter is string && data.chapter.size() <= 500) : true) &&
+             data.pdfUrl is string && data.pdfUrl.size() <= 3000 &&
+             data.classLevel is string &&
+             data.subject is string &&
+             data.date is timestamp;
+    }
+
+    function isValidQuiz(data) {
+      return data.keys().hasAll(['title', 'classLevel', 'subject', 'createdAt']) &&
+             data.title is string && data.title.size() <= 1000 &&
+             data.classLevel is string &&
+             data.subject is string &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidQuestion(data) {
+      return data.keys().hasAll(['question', 'options', 'correctAnswerIndex']) &&
+             data.question is string && data.question.size() <= 5000 &&
+             data.options is list && data.options.size() >= 2 && data.options.size() <= 10 &&
+             data.correctAnswerIndex is int && data.correctAnswerIndex >= 0 && data.correctAnswerIndex < data.options.size();
+    }
+
+    function isValidQuizAttempt(data) {
+      return data.keys().hasAll(['quizId', 'userId', 'score', 'totalQuestions', 'completedAt']) &&
+             data.quizId is string &&
+             data.userId == request.auth.uid &&
+             data.score is int &&
+             data.totalQuestions is int &&
+             data.completedAt is timestamp;
+    }
+
+    function isValidInquiry(data) {
+      return data.keys().hasAll(['studentId', 'studentName', 'studentEmail', 'question', 'status', 'createdAt']) &&
+             data.studentId == request.auth.uid &&
+             data.studentName is string &&
+             data.studentEmail is string &&
+             data.question is string && data.question.size() <= 5000 &&
+             data.status in ['pending', 'answered'] &&
+             (data.has('response') ? (data.response is string && data.response.size() <= 5000) : true) &&
+             data.createdAt is timestamp &&
+             (data.has('answeredAt') ? data.answeredAt is timestamp : true);
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['title', 'message', 'date', 'type']) &&
+             data.title is string && data.title.size() <= 500 &&
+             data.message is string && data.message.size() <= 5000 &&
+             data.type in ['news', 'alert', 'update'] &&
+             data.date is timestamp;
+    }
+
+    // --- Collection Rules ---
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && 
+                    (incoming().role == existing().role || (isAdmin() && incoming().role == 'admin'));
+    }
+
+    match /lectures/{lectureId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /results/{resultId} {
+      allow read: if isSignedIn() && (isAdmin() || (resource != null && resource.data.studentEmail == request.auth.token.email));
+      allow create: if isAdmin(); // Relaxed validation for admin to ensure functionality
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /notes/{noteId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    match /quizzes/{quizId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+
+      match /questions/{questionId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isAdmin();
+      }
+    }
+
+    match /quiz_attempts/{attemptId} {
+      allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && isValidQuizAttempt(incoming());
+      allow update, delete: if isAdmin();
+    }
+
+    match /inquiries/{inquiryId} {
+      allow read: if isSignedIn() && (isAdmin() || resource.data.studentId == request.auth.uid);
+      allow create: if isSignedIn() && isValidInquiry(incoming());
+      allow update: if isAdmin(); // Admin answers
+      allow delete: if isAdmin();
+    }
+
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if false; 
+    }
+  }
+}

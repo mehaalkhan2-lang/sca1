@@ -1,0 +1,119 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isEmailVerified() && (
+        request.auth.token.email == 'mehaalkhan.2@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Helpers ---
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.keys().size() <= 6 &&
+             data.uid is string && data.uid == request.auth.uid &&
+             data.email is string && data.email == request.auth.token.email &&
+             data.role in ['admin', 'student'] &&
+             (data.role == 'admin' ? request.auth.token.email == 'mehaalkhan.2@gmail.com' : true);
+    }
+
+    function isValidLecture(data) {
+      return data.keys().hasAll(['title', 'videoUrl', 'date']) &&
+             data.title is string && data.title.size() <= 200 &&
+             data.videoUrl is string && data.videoUrl.size() <= 500 &&
+             data.date is timestamp;
+    }
+
+    function isValidResult(data) {
+      return data.keys().hasAll(['studentName', 'subject', 'marks', 'totalMarks', 'date']) &&
+             data.studentName is string && data.studentName.size() <= 100 &&
+             data.subject is string && data.subject.size() <= 100 &&
+             data.marks is number && data.totalMarks is number &&
+             data.date is timestamp;
+    }
+
+    function isValidNote(data) {
+      return data.keys().hasAll(['title', 'pdfUrl', 'date']) &&
+             data.title is string && data.title.size() <= 200 &&
+             data.pdfUrl is string && data.pdfUrl.size() <= 500 &&
+             data.date is timestamp;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['title', 'message', 'date']) &&
+             data.title is string && data.title.size() <= 200 &&
+             data.message is string && data.message.size() <= 1000 &&
+             data.date is timestamp;
+    }
+
+    // --- Collection Rules ---
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'role']) &&
+                    (incoming().role == 'admin' ? request.auth.token.email == 'mehaalkhan.2@gmail.com' : true);
+    }
+
+    match /lectures/{lectureId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidLecture(incoming());
+    }
+
+    match /results/{resultId} {
+      allow get: if isSignedIn() && (isAdmin() || existing().studentEmail == request.auth.token.email);
+      allow list: if isSignedIn() && (isAdmin() || resource.data.studentEmail == request.auth.token.email);
+      allow write: if isAdmin() && isValidResult(incoming());
+    }
+
+    match /notes/{noteId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidNote(incoming());
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidNotification(incoming());
+    }
+    
+    // Admins collection for explicit RBAC
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if false; // Only manageable through Firebase Console or Cloud Functions
+    }
+  }
+}

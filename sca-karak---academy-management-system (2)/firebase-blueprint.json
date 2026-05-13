@@ -1,0 +1,168 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile data including roles.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "fullName": { "type": "string" },
+        "classLevel": { "type": "string", "enum": ["9th", "10th", "11th", "12th"] },
+        "role": { "type": "string", "enum": ["admin", "student"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Lecture": {
+      "title": "Daily Topic",
+      "description": "Daily content including board pictures or video links.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "boardImageUrl": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "teacher": { "type": "string" },
+        "classLevel": { "type": "string", "enum": ["9th", "10th", "11th", "12th"] },
+        "subject": { "type": "string", "enum": ["Biology", "Physics", "Chemistry", "Maths", "Other"] }
+      },
+      "required": ["title", "date", "classLevel", "subject"]
+    },
+    "Result": {
+      "title": "Exam Result",
+      "description": "Student exam results.",
+      "type": "object",
+      "properties": {
+        "studentName": { "type": "string" },
+        "studentEmail": { "type": "string" },
+        "subject": { "type": "string", "enum": ["Biology", "Physics", "Chemistry", "Maths", "Other"] },
+        "marks": { "type": "number" },
+        "totalMarks": { "type": "number" },
+        "classLevel": { "type": "string", "enum": ["9th", "10th", "11th", "12th"] },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["studentName", "studentEmail", "subject", "marks", "totalMarks", "classLevel", "date"]
+    },
+    "Note": {
+      "title": "Educational Note",
+      "description": "Notes and study materials in PDF format.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "pdfUrl": { "type": "string" },
+        "chapter": { "type": "string" },
+        "classLevel": { "type": "string", "enum": ["9th", "10th", "11th", "12th"] },
+        "subject": { "type": "string", "enum": ["Biology", "Physics", "Chemistry", "Maths", "Other"] },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "pdfUrl", "date", "classLevel", "subject"]
+    },
+    "Quiz": {
+      "title": "Practice Quiz",
+      "description": "MCQ based practice tests.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "classLevel": { "type": "string", "enum": ["9th", "10th", "11th", "12th"] },
+        "subject": { "type": "string", "enum": ["Biology", "Physics", "Chemistry", "Maths", "Other"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "classLevel", "subject", "createdAt"]
+    },
+    "Question": {
+      "title": "Quiz Question",
+      "description": "A single MCQ question.",
+      "type": "object",
+      "properties": {
+        "question": { "type": "string" },
+        "options": { "type": "array", "items": { "type": "string" } },
+        "correctAnswerIndex": { "type": "number" }
+      },
+      "required": ["question", "options", "correctAnswerIndex"]
+    },
+    "QuizAttempt": {
+      "title": "Quiz Attempt Result",
+      "description": "Result of a student completing a quiz.",
+      "type": "object",
+      "properties": {
+        "quizId": { "type": "string" },
+        "quizTitle": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "score": { "type": "number" },
+        "totalQuestions": { "type": "number" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["quizId", "userId", "score", "totalQuestions", "completedAt"]
+    },
+    "Inquiry": {
+      "title": "Student Inquiry",
+      "description": "Student questions for the help desk.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "studentEmail": { "type": "string" },
+        "question": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "answered"] },
+        "response": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "answeredAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["studentId", "studentName", "studentEmail", "question", "status", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "App-wide notifications for users.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["news", "alert", "update"] }
+      },
+      "required": ["title", "message", "date"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User documents keyed by UID."
+    },
+    "lectures/{lectureId}": {
+      "schema": "Lecture",
+      "description": "Collection of daily lectures."
+    },
+    "results/{resultId}": {
+      "schema": "Result",
+      "description": "Collection of exam results."
+    },
+    "notes/{noteId}": {
+      "schema": "Note",
+      "description": "Collection of PDF notes."
+    },
+    "notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Collection of notifications."
+    },
+    "quizzes/{quizId}": {
+      "schema": "Quiz",
+      "description": "Collection of practice quizzes."
+    },
+    "quizzes/{quizId}/questions/{questionId}": {
+      "schema": "Question",
+      "description": "Subcollection of questions for a quiz."
+    },
+    "quiz_attempts/{attemptId}": {
+      "schema": "QuizAttempt",
+      "description": "Collection of quiz attempts by students."
+    },
+    "inquiries/{inquiryId}": {
+      "schema": "Inquiry",
+      "description": "Collection of student inquiries for the help desk."
+    }
+  }
+}

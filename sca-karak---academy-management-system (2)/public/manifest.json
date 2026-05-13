@@ -1,0 +1,22 @@
+{
+  "short_name": "SCA Karak",
+  "name": "Science Coaching Academy Karak",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0F172A",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#4F46E5",
+  "description": "Educational portal for SCA Karak students."
+}
